@@ -1,0 +1,52 @@
+# Build outputs
+bin/
+obj/
+out/
+/dataset/*
+# Visual Studio / Rider
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userprefs
+.DS_Store
+
+# Test results
+TestResults/
+*.trx
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+*.cache
+
+# Dataset (çok büyük, repo'ya eklenmemeli)
+dataset/
+
+# Python virtual environments (eğer varsa)
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Test scripts
+test*.sh
+test*.py
+*_test.py
+
+# Reports and documentation (geliştirme aşaması)
+*_REPORT.*
+*_RESULTS.*
+*_PROGRESS.*
+*_ROADMAP.*
+CHECKLIST.md
+IMPLEMENTATION_PLAN.md
+
+# Package locks
+package-lock.json
+*.lock
