@@ -332,6 +332,64 @@ public class PolicyController : ControllerBase
     }
 
     /// <summary>
+    /// Direkt PDF text'inden poliçe verilerini çıkarır (PDF upload gerektirmez)
+    /// </summary>
+    [HttpPost("extract-from-text")]
+    [ProducesResponseType(typeof(ExtractionResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ExtractionResult>> ExtractFromText([FromBody] TextExtractionRequest request)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        var result = new ExtractionResult
+        {
+            FileName = request.FileName ?? "text-input"
+        };
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(request.PdfText))
+            {
+                result.Success = false;
+                result.Errors.Add("PDF metni boş olamaz");
+                return BadRequest(result);
+            }
+
+            _logger.LogInformation($"Text extraction başlıyor: {request.FileName ?? "unknown"} ({request.PdfText.Length} karakter)");
+
+            // Text'ten verileri çıkar
+            var policyData = await _orchestrator.ExtractPolicyDataAsync(request.PdfText);
+            result.Data = policyData;
+
+            // Validate et
+            var validationResult = _validator.Validate(policyData);
+            result.Errors.AddRange(validationResult.Errors);
+            result.Warnings.AddRange(validationResult.Warnings);
+            result.Warnings.AddRange(policyData.Warnings);
+
+            // Success durumunu belirle
+            result.Success = validationResult.IsValid && policyData.ConfidenceScore >= 0.5;
+
+            stopwatch.Stop();
+            result.ProcessingTimeMs = (int)stopwatch.ElapsedMilliseconds;
+
+            _logger.LogInformation($"Text extraction tamamlandı: Success: {result.Success}, Confidence: {policyData.ConfidenceScore:P2}, Time: {result.ProcessingTimeMs}ms");
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Text extraction hatası");
+
+            stopwatch.Stop();
+            result.Success = false;
+            result.Errors.Add($"İşlem hatası: {ex.Message}");
+            result.ProcessingTimeMs = (int)stopwatch.ElapsedMilliseconds;
+
+            return StatusCode(500, result);
+        }
+    }
+
+    /// <summary>
     /// Debug: PDF'den sadece raw text çıkarır
     /// </summary>
     [HttpPost("debug/extract-text")]
