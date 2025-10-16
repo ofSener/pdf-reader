@@ -51,6 +51,13 @@ namespace Pdf_Reader
                         Version = "v1",
                         Description = "Sigorta poliçesi PDF'lerinden veri çıkarma API'si"
                     });
+
+                    // IFormFile support - map to file upload in Swagger UI
+                    c.MapType<IFormFile>(() => new Microsoft.OpenApi.Models.OpenApiSchema
+                    {
+                        Type = "string",
+                        Format = "binary"
+                    });
                 });
 
                 // CORS yapılandırması (gerekirse)

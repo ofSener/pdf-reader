@@ -39,11 +39,10 @@ public class PolicyController : ControllerBase
     /// Tek bir PDF dosyasından poliçe verilerini çıkarır
     /// </summary>
     [HttpPost("extract")]
-    [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(ExtractionResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<ExtractionResult>> ExtractPolicy([FromForm] IFormFile file)
+    public async Task<ActionResult<ExtractionResult>> ExtractPolicy(IFormFile file)
     {
         var stopwatch = Stopwatch.StartNew();
         var result = new ExtractionResult
@@ -143,10 +142,10 @@ public class PolicyController : ControllerBase
     /// Asenkron batch processing için /extract-batch-async kullanın.
     /// </summary>
     [HttpPost("extract-batch")]
-    [Consumes("multipart/form-data")]
+    [ActionName("ExtractBatchSync")]
     [ProducesResponseType(typeof(BatchExtractionResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<BatchExtractionResult>> ExtractPolicyBatch([FromForm] List<IFormFile> files)
+    public async Task<ActionResult<BatchExtractionResult>> ExtractPolicyBatch(List<IFormFile> files)
     {
         var overallStopwatch = Stopwatch.StartNew();
         var batchResult = new BatchExtractionResult
@@ -336,8 +335,7 @@ public class PolicyController : ControllerBase
     /// Debug: PDF'den sadece raw text çıkarır
     /// </summary>
     [HttpPost("debug/extract-text")]
-    [Consumes("multipart/form-data")]
-    public async Task<ActionResult<object>> ExtractTextOnly([FromForm] IFormFile file)
+    public async Task<ActionResult<object>> ExtractTextOnly(IFormFile file)
     {
         try
         {
@@ -372,10 +370,10 @@ public class PolicyController : ControllerBase
     /// Batch işlemi için job oluşturur (asenkron - hemen döner)
     /// </summary>
     [HttpPost("extract-batch-async")]
-    [Consumes("multipart/form-data")]
+    [ActionName("ExtractBatchAsync")]
     [ProducesResponseType(typeof(BatchJobResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<BatchJobResponse>> ExtractPolicyBatchAsync([FromForm] List<IFormFile> files)
+    public async Task<ActionResult<BatchJobResponse>> ExtractPolicyBatchAsync(List<IFormFile> files)
     {
         try
         {
