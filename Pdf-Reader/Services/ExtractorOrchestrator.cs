@@ -50,9 +50,9 @@ public class ExtractorOrchestrator
 
         try
         {
-            // 0. İptal/Zeyil/Fesih belgesi kontrolü
-            policyData.IsCancellationDocument = IsCancellationDocument(pdfText);
-            if (policyData.IsCancellationDocument)
+            // 0. İptal/Zeyil/Fesih belgesi kontrolü (internal - response'a eklenmez)
+            bool isCancellationDocument = IsCancellationDocument(pdfText);
+            if (isCancellationDocument)
             {
                 _logger.LogInformation("Belge iptal/zeyil/fesih belgesi olarak tespit edildi");
                 warnings.Add("İptal/Zeyil/Fesih belgesi (negatif değerler kabul edilir)");
@@ -206,10 +206,8 @@ public class ExtractorOrchestrator
                 }
             }
 
-            // 7. Toplam confidence skorunu hesapla
-            policyData.FieldConfidence = fieldConfidence;
+            // 7. Toplam confidence skorunu hesapla (FieldConfidence internal - response'a eklenmez)
             policyData.ConfidenceScore = CalculateOverallConfidence(fieldConfidence, policyType);
-            policyData.Warnings = warnings;
 
             _logger.LogInformation($"Extraction tamamlandı. Toplam confidence: {policyData.ConfidenceScore:P2}, Uyarı sayısı: {warnings.Count}");
 
@@ -218,7 +216,7 @@ public class ExtractorOrchestrator
         catch (Exception ex)
         {
             _logger.LogError(ex, "Extraction sırasında hata oluştu");
-            policyData.Warnings.Add($"Extraction hatası: {ex.Message}");
+            warnings.Add($"Extraction hatası: {ex.Message}");
             return policyData;
         }
     }
@@ -368,10 +366,7 @@ public class ExtractorOrchestrator
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Dosya extraction hatası: {kvp.Key}");
-                results.Add((kvp.Key, new PolicyData
-                {
-                    Warnings = new List<string> { $"İşlem hatası: {ex.Message}" }
-                }));
+                results.Add((kvp.Key, new PolicyData()));
             }
         }
 

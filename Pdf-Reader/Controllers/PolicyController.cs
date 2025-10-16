@@ -36,253 +36,42 @@ public class PolicyController : ControllerBase
     }
 
     /// <summary>
-    /// Tek bir PDF dosyasından poliçe verilerini çıkarır
+    /// [DEVRE DIŞI] Tek bir PDF dosyasından poliçe verilerini çıkarır
+    /// Bu endpoint kapatılmıştır. Lütfen /extract-from-text kullanın.
     /// </summary>
+    [Obsolete("Bu endpoint kapatılmıştır. /extract-from-text kullanın.")]
     [HttpPost("extract")]
-    [ProducesResponseType(typeof(ExtractionResult), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<ExtractionResult>> ExtractPolicy(IFormFile file)
+    [ProducesResponseType(typeof(object), StatusCodes.Status410Gone)]
+    public ActionResult ExtractPolicy(IFormFile file)
     {
-        var stopwatch = Stopwatch.StartNew();
-        var result = new ExtractionResult
+        _logger.LogWarning("PDF upload endpoint'i devre dışı - /extract-from-text kullanılmalı");
+        return StatusCode(410, new
         {
-            FileName = file.FileName
-        };
-
-        try
-        {
-            // Dosya kontrolü
-            if (file == null || file.Length == 0)
-            {
-                _logger.LogWarning("Geçersiz dosya yüklendi");
-                result.Success = false;
-                result.Errors.Add("Geçersiz veya boş dosya");
-                return BadRequest(result);
-            }
-
-            if (!file.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
-            {
-                _logger.LogWarning($"PDF olmayan dosya yüklendi: {file.FileName}");
-                result.Success = false;
-                result.Errors.Add("Sadece PDF dosyaları kabul edilir");
-                return BadRequest(result);
-            }
-
-            // Dosya boyutu kontrolü (max 50MB)
-            if (file.Length > 50 * 1024 * 1024)
-            {
-                _logger.LogWarning($"Çok büyük dosya: {file.Length} bytes");
-                result.Success = false;
-                result.Errors.Add("Dosya boyutu 50MB'dan küçük olmalı");
-                return BadRequest(result);
-            }
-
-            _logger.LogInformation($"PDF extraction başlıyor: {file.FileName} ({file.Length} bytes)");
-
-            // 1. PDF'den text çıkar
-            string pdfText;
-            using (var stream = file.OpenReadStream())
-            {
-                var (text, pageCount) = await _pdfExtractor.ExtractTextAsync(stream);
-                pdfText = text;
-                _logger.LogInformation($"PDF text extraction tamamlandı: {pageCount} sayfa");
-            }
-
-            if (string.IsNullOrWhiteSpace(pdfText))
-            {
-                result.Success = false;
-                result.Errors.Add("PDF'den text çıkarılamadı. Dosya şifreli veya OCR gerektirebilir.");
-                stopwatch.Stop();
-                result.ProcessingTimeMs = (int)stopwatch.ElapsedMilliseconds;
-                return Ok(result);
-            }
-
-            // 2. Verileri çıkar
-            var policyData = await _orchestrator.ExtractPolicyDataAsync(pdfText);
-            result.Data = policyData;
-
-            // 3. Validate et
-            var validationResult = _validator.Validate(policyData);
-            result.Errors.AddRange(validationResult.Errors);
-            result.Warnings.AddRange(validationResult.Warnings);
-            result.Warnings.AddRange(policyData.Warnings);
-
-            // 4. Success durumunu belirle
-            result.Success = validationResult.IsValid && policyData.ConfidenceScore >= 0.5;
-
-            if (!validationResult.IsValid)
-            {
-                _logger.LogWarning($"Validation başarısız: {file.FileName}");
-            }
-
-            stopwatch.Stop();
-            result.ProcessingTimeMs = (int)stopwatch.ElapsedMilliseconds;
-
-            _logger.LogInformation($"Extraction tamamlandı: {file.FileName} - Success: {result.Success}, Confidence: {policyData.ConfidenceScore:P2}, Time: {result.ProcessingTimeMs}ms");
-
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, $"Extraction hatası: {file?.FileName}");
-
-            stopwatch.Stop();
-            result.Success = false;
-            result.Errors.Add($"İşlem hatası: {ex.Message}");
-            result.ProcessingTimeMs = (int)stopwatch.ElapsedMilliseconds;
-
-            return StatusCode(500, result);
-        }
+            error = "Bu endpoint kapatılmıştır",
+            message = "PDF upload artık desteklenmiyor. Lütfen PDF'inizi önce text'e çevirip /extract-from-text endpoint'ini kullanın.",
+            alternative = "/api/Policy/extract-from-text",
+            documentation = "https://aivoice.sigorta.teklifi.al/swagger"
+        });
     }
 
     /// <summary>
-    /// Birden fazla PDF dosyasından poliçe verilerini çıkarır (Paralel işleme)
-    /// NOT: Bu endpoint senkron çalışır, client işlem bitene kadar bekler.
-    /// Asenkron batch processing için /extract-batch-async kullanın.
+    /// [DEVRE DIŞI] Birden fazla PDF dosyasından poliçe verilerini çıkarır
+    /// Bu endpoint kapatılmıştır. Lütfen /extract-from-text kullanın.
     /// </summary>
+    [Obsolete("Bu endpoint kapatılmıştır. /extract-from-text kullanın.")]
     [HttpPost("extract-batch")]
     [ActionName("ExtractBatchSync")]
-    [ProducesResponseType(typeof(BatchExtractionResult), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<BatchExtractionResult>> ExtractPolicyBatch(List<IFormFile> files)
+    [ProducesResponseType(typeof(object), StatusCodes.Status410Gone)]
+    public ActionResult ExtractPolicyBatch(List<IFormFile> files)
     {
-        var overallStopwatch = Stopwatch.StartNew();
-        var batchResult = new BatchExtractionResult
+        _logger.LogWarning("PDF batch upload endpoint'i devre dışı - /extract-from-text kullanılmalı");
+        return StatusCode(410, new
         {
-            TotalFiles = files?.Count ?? 0
-        };
-
-        try
-        {
-            if (files == null || files.Count == 0)
-            {
-                _logger.LogWarning("Batch request'te dosya yok");
-                return BadRequest("En az bir dosya yüklenmelidir");
-            }
-
-            if (files.Count > 100)
-            {
-                _logger.LogWarning($"Çok fazla dosya: {files.Count}");
-                return BadRequest("Maksimum 100 dosya aynı anda işlenebilir");
-            }
-
-            _logger.LogInformation($"Batch extraction başlıyor: {files.Count} dosya (Paralel mode)");
-
-            // PARALEL PDF TEXT EXTRACTION
-            // MaxDegreeOfParallelism: CPU core sayısına göre otomatik ayarlanır
-            // IIS'te genelde 4-8 arası ideal
-            var maxParallelism = Environment.ProcessorCount; // Otomatik CPU core sayısı
-            _logger.LogDebug($"Paralel işleme thread sayısı: {maxParallelism}");
-
-            var extractionTasks = files.Select(async file =>
-            {
-                var fileStopwatch = Stopwatch.StartNew();
-
-                try
-                {
-                    if (!file.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
-                    {
-                        _logger.LogWarning($"PDF olmayan dosya atlandı: {file.FileName}");
-                        return new ExtractionResult
-                        {
-                            FileName = file.FileName,
-                            Success = false,
-                            Errors = new List<string> { "Sadece PDF dosyaları kabul edilir" }
-                        };
-                    }
-
-                    // 1. PDF'den text çıkar
-                    string pdfText;
-                    int pageCount;
-
-                    using (var stream = file.OpenReadStream())
-                    {
-                        var (text, pages) = await _pdfExtractor.ExtractTextAsync(stream);
-                        pdfText = text;
-                        pageCount = pages;
-                    }
-
-                    if (string.IsNullOrWhiteSpace(pdfText))
-                    {
-                        return new ExtractionResult
-                        {
-                            FileName = file.FileName,
-                            Success = false,
-                            Errors = new List<string> { "PDF'den text çıkarılamadı" },
-                            ProcessingTimeMs = (int)fileStopwatch.ElapsedMilliseconds
-                        };
-                    }
-
-                    // 2. Verileri çıkar
-                    var policyData = await _orchestrator.ExtractPolicyDataAsync(pdfText);
-
-                    // 3. Validate et
-                    var validationResult = _validator.Validate(policyData);
-
-                    // 4. Result oluştur
-                    var extractionResult = new ExtractionResult
-                    {
-                        FileName = file.FileName,
-                        Data = policyData,
-                        Success = validationResult.IsValid && policyData.ConfidenceScore >= 0.5,
-                        ProcessingTimeMs = (int)fileStopwatch.ElapsedMilliseconds
-                    };
-
-                    extractionResult.Errors.AddRange(validationResult.Errors);
-                    extractionResult.Warnings.AddRange(validationResult.Warnings);
-                    extractionResult.Warnings.AddRange(policyData.Warnings);
-
-                    _logger.LogDebug($"Dosya işlendi: {file.FileName} - {extractionResult.ProcessingTimeMs}ms");
-
-                    return extractionResult;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, $"PDF işleme hatası: {file.FileName}");
-                    return new ExtractionResult
-                    {
-                        FileName = file.FileName,
-                        Success = false,
-                        Errors = new List<string> { $"PDF işleme hatası: {ex.Message}" },
-                        ProcessingTimeMs = (int)fileStopwatch.ElapsedMilliseconds
-                    };
-                }
-            });
-
-            // PARALEL EXECUTION - Task.WhenAll ile tüm dosyalar aynı anda işlenir
-            // IIS Thread Pool otomatik olarak load balancing yapar
-            var results = await Task.WhenAll(extractionTasks);
-
-            // Sonuçları topla
-            foreach (var result in results)
-            {
-                batchResult.Results.Add(result);
-
-                if (result.Success)
-                    batchResult.SuccessCount++;
-                else
-                    batchResult.FailureCount++;
-            }
-
-            overallStopwatch.Stop();
-            var avgTimePerFile = results.Length > 0 ? results.Average(r => r.ProcessingTimeMs) : 0;
-
-            _logger.LogInformation(
-                $"Batch extraction tamamlandı: {batchResult.TotalFiles} dosya, " +
-                $"{batchResult.SuccessCount} başarılı, {batchResult.FailureCount} başarısız, " +
-                $"Toplam süre: {overallStopwatch.ElapsedMilliseconds}ms, " +
-                $"Ortalama: {avgTimePerFile:F0}ms/dosya, " +
-                $"Paralel thread: {maxParallelism}");
-
-            return Ok(batchResult);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Batch extraction hatası");
-            overallStopwatch.Stop();
-            return StatusCode(500, $"Batch işlem hatası: {ex.Message}");
-        }
+            error = "Bu endpoint kapatılmıştır",
+            message = "PDF batch upload artık desteklenmiyor. Lütfen her PDF'i text'e çevirip /extract-from-text ile tek tek gönderin.",
+            alternative = "/api/Policy/extract-from-text",
+            documentation = "https://aivoice.sigorta.teklifi.al/swagger"
+        });
     }
 
     /// <summary>
@@ -364,7 +153,7 @@ public class PolicyController : ControllerBase
             var validationResult = _validator.Validate(policyData);
             result.Errors.AddRange(validationResult.Errors);
             result.Warnings.AddRange(validationResult.Warnings);
-            result.Warnings.AddRange(policyData.Warnings);
+            // Not: policyData.Warnings artık yok - tüm warnings validation'dan geliyor
 
             // Success durumunu belirle
             result.Success = validationResult.IsValid && policyData.ConfidenceScore >= 0.5;
@@ -390,105 +179,39 @@ public class PolicyController : ControllerBase
     }
 
     /// <summary>
-    /// Debug: PDF'den sadece raw text çıkarır
+    /// [DEVRE DIŞI] Debug: PDF'den sadece raw text çıkarır
+    /// Bu endpoint kapatılmıştır.
     /// </summary>
+    [Obsolete("Bu endpoint kapatılmıştır.")]
     [HttpPost("debug/extract-text")]
-    public async Task<ActionResult<object>> ExtractTextOnly(IFormFile file)
+    public ActionResult ExtractTextOnly(IFormFile file)
     {
-        try
+        _logger.LogWarning("Debug PDF text extract endpoint'i devre dışı");
+        return StatusCode(410, new
         {
-            if (file == null || file.Length == 0)
-                return BadRequest("Dosya yok");
-
-            string pdfText;
-            int pageCount;
-
-            using (var stream = file.OpenReadStream())
-            {
-                var (text, pages) = await _pdfExtractor.ExtractTextAsync(stream);
-                pdfText = text;
-                pageCount = pages;
-            }
-
-            return Ok(new
-            {
-                fileName = file.FileName,
-                pageCount = pageCount,
-                textLength = pdfText.Length,
-                text = pdfText
-            });
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new { error = ex.Message });
-        }
+            error = "Bu endpoint kapatılmıştır",
+            message = "PDF upload artık desteklenmiyor."
+        });
     }
 
     /// <summary>
-    /// Batch işlemi için job oluşturur (asenkron - hemen döner)
+    /// [DEVRE DIŞI] Batch işlemi için job oluşturur
+    /// Bu endpoint kapatılmıştır. Lütfen /extract-from-text kullanın.
     /// </summary>
+    [Obsolete("Bu endpoint kapatılmıştır. /extract-from-text kullanın.")]
     [HttpPost("extract-batch-async")]
     [ActionName("ExtractBatchAsync")]
-    [ProducesResponseType(typeof(BatchJobResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<BatchJobResponse>> ExtractPolicyBatchAsync(List<IFormFile> files)
+    [ProducesResponseType(typeof(object), StatusCodes.Status410Gone)]
+    public ActionResult ExtractPolicyBatchAsync(List<IFormFile> files)
     {
-        try
+        _logger.LogWarning("PDF batch async upload endpoint'i devre dışı - /extract-from-text kullanılmalı");
+        return StatusCode(410, new
         {
-            if (files == null || files.Count == 0)
-                return BadRequest("En az bir dosya yüklenmelidir");
-
-            if (files.Count > 100)
-                return BadRequest("Maksimum 100 dosya aynı anda işlenebilir");
-
-            // Job ID oluştur
-            var jobId = Guid.NewGuid().ToString();
-
-            // Dosyaları byte array'e çevir (Hangfire serialize için gerekli)
-            var fileData = new List<(string fileName, byte[] fileBytes)>();
-            foreach (var file in files)
-            {
-                using var ms = new MemoryStream();
-                await file.CopyToAsync(ms);
-                fileData.Add((file.FileName, ms.ToArray()));
-            }
-
-            // Redis'e job metadata kaydet (opsiyonel)
-            if (_redis != null)
-            {
-                var db = _redis.GetDatabase();
-                await db.StringSetAsync(
-                    $"job:{jobId}:status",
-                    "queued",
-                    TimeSpan.FromDays(7));
-                await db.StringSetAsync(
-                    $"job:{jobId}:created",
-                    DateTime.UtcNow.ToString("O"),
-                    TimeSpan.FromDays(7));
-            }
-
-            // Hangfire job'ı kuyruğa ekle
-            var hangfireJobId = _backgroundJobs.Enqueue<BatchProcessingJobService>(
-                service => service.ProcessBatchAsync(jobId, fileData));
-
-            _logger.LogInformation($"Batch job oluşturuldu: {jobId} (Hangfire: {hangfireJobId}), {files.Count} dosya");
-
-            // Client'a hemen yanıt dön
-            return Ok(new BatchJobResponse
-            {
-                JobId = jobId,
-                Status = "queued",
-                TotalFiles = files.Count,
-                Message = $"İşlem kuyruğa eklendi. Sonuçları GET /api/policy/job/{jobId} endpoint'inden takip edebilirsiniz.",
-                EstimatedCompletionTime = DateTime.UtcNow.AddSeconds(files.Count * 0.5), // ~500ms/dosya
-                CreatedAt = DateTime.UtcNow
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Batch job oluşturma hatası");
-            return StatusCode(500, $"Job oluşturma hatası: {ex.Message}");
-        }
+            error = "Bu endpoint kapatılmıştır",
+            message = "PDF batch async upload artık desteklenmiyor. Lütfen her PDF'i text'e çevirip /extract-from-text ile gönderin.",
+            alternative = "/api/Policy/extract-from-text",
+            documentation = "https://aivoice.sigorta.teklifi.al/swagger"
+        });
     }
 
     /// <summary>

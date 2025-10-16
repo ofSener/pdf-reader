@@ -1,19 +1,22 @@
 # PDF Reader - Türk Sigorta Poliçesi Okuma API
 
-.NET 9.0 tabanlı, Türk sigorta şirketlerinin PDF poliçelerinden otomatik veri çıkarma API'si.
+.NET 9.0 tabanlı, Türk sigorta şirketlerinin PDF text'lerinden otomatik veri çıkarma API'si.
+
+## ⚠️ ÖNEMLİ DEĞİŞİKLİK
+
+**Bu API artık PDF dosyası kabul etmemektedir.** PDF'lerinizi text'e çevirip JSON olarak göndermeniz gerekmektedir.
 
 ## Özellikler
 
+- **Text-Based Processing**: PDF text'i JSON ile gönderilir (PDF upload yok)
 - **Çoklu Şirket Desteği**: 21+ Türk sigorta şirketi
 - **Çoklu Poliçe Tipi**: Trafik, Kasko, DASK, Konut, TSS, Ferdi Kaza, vb.
 - **Yüksek Doğruluk**: %97+ başarı oranı
 - **Otomatik Validation**: Çıkarılan verilerin otomatik doğrulanması
 - **RESTful API**: Kolay entegrasyon
 - **Swagger Dokümantasyonu**: Otomatik API dokümantasyonu
-- **🔥 Background Job Processing**: Hangfire + Redis ile asenkron batch işleme
-- **📊 Real-time Dashboard**: Hangfire dashboard ile job monitoring
-- **⚡ Paralel İşleme**: CPU core sayısına göre otomatik paralel processing
-- **🔄 Progress Tracking**: Batch işlemlerde gerçek zamanlı ilerleme takibi
+- **⚡ Hızlı İşleme**: PDF parsing adımı atlandığı için daha hızlı
+- **📦 Düşük Bandwidth**: Text << PDF binary
 
 ## Desteklenen Sigorta Şirketleri
 
@@ -94,14 +97,17 @@ API varsayılan olarak `http://localhost:5000` adresinde çalışacaktır.
 
 ## Kullanım
 
-### API Endpoints
+### Ana Endpoint
 
-#### 1. Tek PDF Çıkarma (Senkron)
+#### Text-Based Extraction (Tek Endpoint)
 ```http
-POST /api/policy/extract
-Content-Type: multipart/form-data
+POST /api/Policy/extract-from-text
+Content-Type: application/json
 
-file: <pdf-file>
+{
+  "pdfText": "ANADOLU SİGORTA\nPoliçe No: 1234567890\n...",
+  "fileName": "policy_001.pdf"  // opsiyonel
+}
 ```
 
 **Yanıt:**
@@ -123,84 +129,17 @@ file: <pdf-file>
     "confidenceScore": 0.95
   },
   "errors": [],
-  "warnings": []
+  "warnings": [],
+  "processingTimeMs": 320
 }
 ```
 
-#### 2. Batch İşlem - Senkron (Client Bekler)
+**Not:** PDF dosyası upload etmek mümkün değildir. PDF'lerinizi önce text'e çevirip bu endpoint'e gönderin.
+
+#### 2. Sağlık Kontrolü
 ```http
-POST /api/policy/extract-batch
-Content-Type: multipart/form-data
-
-files: <multiple-pdf-files>
+GET /api/Policy/health
 ```
-
-#### 3. 🔥 Batch İşlem - Asenkron (Background Job)
-```http
-POST /api/policy/extract-batch-async
-Content-Type: multipart/form-data
-
-files: <multiple-pdf-files>
-```
-
-**Hemen Dönen Yanıt:**
-```json
-{
-  "jobId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "status": "queued",
-  "totalFiles": 100,
-  "message": "İşlem kuyruğa eklendi. Sonuçları GET /api/policy/job/{jobId} endpoint'inden takip edebilirsiniz.",
-  "estimatedCompletionTime": "2025-01-16T10:05:00Z",
-  "createdAt": "2025-01-16T10:00:00Z"
-}
-```
-
-#### 4. 📊 Job Status Sorgulama
-```http
-GET /api/policy/job/{jobId}
-```
-
-**Yanıt (Processing):**
-```json
-{
-  "jobId": "a1b2c3d4-...",
-  "status": "processing",
-  "progress": {
-    "totalFiles": 100,
-    "processedFiles": 45,
-    "currentFile": "policy_045.pdf",
-    "percentageComplete": 45
-  }
-}
-```
-
-**Yanıt (Completed):**
-```json
-{
-  "jobId": "a1b2c3d4-...",
-  "status": "completed",
-  "result": {
-    "totalFiles": 100,
-    "successCount": 98,
-    "failureCount": 2,
-    "results": [...]
-  }
-}
-```
-
-#### 5. Sağlık Kontrolü
-```http
-GET /health
-```
-
-#### 6. 📊 Hangfire Dashboard
-```
-http://your-server:5109/hangfire
-```
-- Job queue monitoring
-- Başarılı/başarısız job'lar
-- Retry mekanizması
-- Real-time statistics
 
 ### Swagger UI
 

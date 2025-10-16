@@ -10,8 +10,5 @@ public class ExtractionResult
     public List<string> Errors { get; set; } = new();
     public List<string> Warnings { get; set; } = new();
     public string? FileName { get; set; }
-    public long FileSizeBytes { get; set; }
     public int ProcessingTimeMs { get; set; }
-    public int PageCount { get; set; }
-    public string? RawText { get; set; } // Debug için
 }

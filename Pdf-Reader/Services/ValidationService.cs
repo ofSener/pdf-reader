@@ -196,22 +196,16 @@ public class ValidationService
     /// </summary>
     private void ValidateMoneyValues(PolicyData data, ValidationResult result)
     {
-        // İptal/Zeyil/Fesih belgelerinde negatif değerler ve Brüt < Net durumu kabul edilir
-        bool isCancellation = data.IsCancellationDocument;
+        // Not: İptal/Zeyil/Fesih belgelerinde negatif değerler kabul edilebilir
+        // Ancak bu bilgi artık PolicyData'da tutulmadığı için negatif değerleri warning olarak işliyoruz
 
         // Net prim kontrolü
         if (data.NetPremium.HasValue)
         {
             if (data.NetPremium.Value < 0)
             {
-                if (isCancellation)
-                {
-                    result.Warnings.Add($"Net prim negatif (İptal/Zeyil belgesi): {data.NetPremium.Value:N2} TL");
-                }
-                else
-                {
-                    result.Errors.Add($"Net prim negatif olamaz: {data.NetPremium.Value}");
-                }
+                // Negatif değerler iptal/zeyil belgelerinde görülebilir
+                result.Warnings.Add($"Net prim negatif (İptal/Zeyil belgesi olabilir): {data.NetPremium.Value:N2} TL");
             }
             else if (data.NetPremium.Value == 0)
             {
@@ -228,14 +222,8 @@ public class ValidationService
         {
             if (data.GrossPremium.Value < 0)
             {
-                if (isCancellation)
-                {
-                    result.Warnings.Add($"Brüt prim negatif (İptal/Zeyil belgesi): {data.GrossPremium.Value:N2} TL");
-                }
-                else
-                {
-                    result.Errors.Add($"Brüt prim negatif olamaz: {data.GrossPremium.Value}");
-                }
+                // Negatif değerler iptal/zeyil belgelerinde görülebilir
+                result.Warnings.Add($"Brüt prim negatif (İptal/Zeyil belgesi olabilir): {data.GrossPremium.Value:N2} TL");
             }
             else if (data.GrossPremium.Value == 0)
             {
@@ -252,14 +240,8 @@ public class ValidationService
         {
             if (data.GrossPremium.Value < data.NetPremium.Value)
             {
-                if (isCancellation)
-                {
-                    result.Warnings.Add($"Brüt prim ({data.GrossPremium.Value:N2}) net primden ({data.NetPremium.Value:N2}) küçük (İptal/Zeyil belgesi)");
-                }
-                else
-                {
-                    result.Errors.Add($"Brüt prim ({data.GrossPremium.Value:N2}) net primden ({data.NetPremium.Value:N2}) küçük olamaz");
-                }
+                // Bu durum iptal/zeyil belgelerinde görülebilir
+                result.Warnings.Add($"Brüt prim ({data.GrossPremium.Value:N2}) net primden ({data.NetPremium.Value:N2}) küçük (İptal/Zeyil belgesi olabilir)");
             }
 
             // Fark çok fazla ise şüpheli (0'a bölme hatası önlemi)
@@ -280,14 +262,8 @@ public class ValidationService
         {
             if (data.GiderVergisi.Value < 0)
             {
-                if (isCancellation)
-                {
-                    result.Warnings.Add($"Gider vergisi negatif (İptal/Zeyil belgesi): {data.GiderVergisi.Value:N2} TL");
-                }
-                else
-                {
-                    result.Errors.Add($"Gider vergisi negatif olamaz: {data.GiderVergisi.Value}");
-                }
+                // Negatif değerler iptal/zeyil belgelerinde görülebilir
+                result.Warnings.Add($"Gider vergisi negatif (İptal/Zeyil belgesi olabilir): {data.GiderVergisi.Value:N2} TL");
             }
         }
     }
@@ -432,19 +408,8 @@ public class ValidationService
             result.Warnings.Add($"Genel güven skoru düşük: {data.ConfidenceScore:P0}");
         }
 
-        // Kritik alanlarda düşük confidence uyarısı
-        var criticalFields = new[] { "PolicyNumber", "StartDate", "EndDate", "GrossPremium" };
-
-        foreach (var field in criticalFields)
-        {
-            if (data.FieldConfidence.TryGetValue(field, out double confidence))
-            {
-                if (confidence < 0.7)
-                {
-                    result.Warnings.Add($"{field} alanı düşük güven skoruna sahip: {confidence:P0}");
-                }
-            }
-        }
+        // Not: Alan bazlı confidence skorları artık response'da yer almadığı için
+        // sadece toplam confidence skoru kontrol ediliyor
     }
 }
 

@@ -29,22 +29,13 @@ public class PolicyData
     public string? InsuredPhone { get; set; }
     public string? InsuredAddress { get; set; }
 
-    // Araç Bilgileri (Trafik/Kasko/Ferdi Kaza için)
+    // Araç Bilgileri (Trafik/Kasko için)
     public string? PlateNumber { get; set; }
     public string? VehicleBrand { get; set; }
     public string? VehicleModel { get; set; }
-    public string? VehicleType { get; set; }
-    public int? VehicleYear { get; set; }
     public string? ChassisNumber { get; set; }
     public string? EngineNumber { get; set; }
 
-    // Meta Bilgiler
+    // Güven Skoru
     public double ConfidenceScore { get; set; } // 0.0 - 1.0 arası
-    public List<string> Warnings { get; set; } = new();
-    public Dictionary<string, double> FieldConfidence { get; set; } = new(); // Her alan için ayrı güven skoru
-    public string? ExtractionMethod { get; set; } // Hangi yöntemle çıkarıldı
-    public DateTime ExtractedAt { get; set; } = DateTime.UtcNow;
-
-    // Özel Durum Flag'leri
-    public bool IsCancellationDocument { get; set; } = false; // İptal/Zeyil/Fesih belgesi mi?
 }
