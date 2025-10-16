@@ -151,7 +151,7 @@ namespace Pdf_Reader
                 app.UseSwaggerUI(c =>
                 {
                     c.SwaggerEndpoint("/swagger/v1/swagger.json", "PDF Policy Extractor API v1");
-                    c.RoutePrefix = string.Empty; // Swagger UI root'ta açılsın
+                    c.RoutePrefix = "swagger"; // Swagger UI /swagger endpoint'inde
                 });
 
                 // Hangfire Dashboard
@@ -171,7 +171,8 @@ namespace Pdf_Reader
                 app.MapControllers();
 
                 Log.Information("PDF Reader API başarıyla başlatıldı");
-                Log.Information("Swagger UI: http://localhost:5000 veya https://localhost:5001");
+                Log.Information("Swagger UI: http://localhost:5109 veya https://localhost:7239");
+                Log.Information("Hangfire Dashboard: http://localhost:5109/hangfire veya https://localhost:7239/hangfire");
 
                 app.Run();
             }
