@@ -9,8 +9,7 @@ public class PolicyData
     public string? PolicyNumber { get; set; }
     public CompanyType Company { get; set; } = CompanyType.Unknown;
     public string? CompanyName { get; set; }
-    public PolicyType PolicyType { get; set; } = PolicyType.Unknown;
-    public string? PolicyTypeText { get; set; }
+    public string? PolicyType { get; set; } // String olarak (örn: "Dask", "Trafik")
 
     // Tarihler
     public DateTime? StartDate { get; set; }
@@ -21,7 +20,6 @@ public class PolicyData
     // Prim Bilgileri
     public decimal? NetPremium { get; set; }
     public decimal? GrossPremium { get; set; }
-    public decimal? GiderVergisi { get; set; }
 
     // Sigortalı Bilgileri
     public string? InsuredName { get; set; }
@@ -31,8 +29,6 @@ public class PolicyData
 
     // Araç Bilgileri (Trafik/Kasko için)
     public string? PlateNumber { get; set; }
-    public string? VehicleBrand { get; set; }
-    public string? VehicleModel { get; set; }
     public string? ChassisNumber { get; set; }
     public string? EngineNumber { get; set; }
 

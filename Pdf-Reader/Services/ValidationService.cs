@@ -109,7 +109,7 @@ public class ValidationService
         }
 
         // Araç poliçeleri için plaka zorunlu
-        if ((data.PolicyType == PolicyType.Trafik || data.PolicyType == PolicyType.Kasko) &&
+        if ((data.PolicyType == "Trafik" || data.PolicyType == "Kasko") &&
             string.IsNullOrWhiteSpace(data.PlateNumber))
         {
             result.Errors.Add($"{data.PolicyType} poliçesi için plaka numarası zorunludur");
@@ -254,16 +254,6 @@ public class ValidationService
                 {
                     result.Warnings.Add($"Brüt-Net prim farkı çok yüksek: %{diffPercent:N1}");
                 }
-            }
-        }
-
-        // Gider vergisi kontrolü
-        if (data.GiderVergisi.HasValue)
-        {
-            if (data.GiderVergisi.Value < 0)
-            {
-                // Negatif değerler iptal/zeyil belgelerinde görülebilir
-                result.Warnings.Add($"Gider vergisi negatif (İptal/Zeyil belgesi olabilir): {data.GiderVergisi.Value:N2} TL");
             }
         }
     }

@@ -71,7 +71,7 @@ public class ExtractorOrchestrator
             }
 
             var (policyType, policyTypeConfidence) = _companyDetector.DetectPolicyType(pdfText);
-            policyData.PolicyType = policyType;
+            policyData.PolicyType = policyType.ToString(); // Enum'u string'e çevir
             fieldConfidence["PolicyType"] = policyTypeConfidence;
 
             if (policyType == PolicyType.Unknown)
@@ -123,7 +123,11 @@ public class ExtractorOrchestrator
             }
             else
             {
-                warnings.Add("Net prim bulunamadı");
+                // DASK ve Konut poliçelerinde sadece brüt prim bulunur, net prim uyarısı gereksizdir
+                if (policyType != PolicyType.Dask && policyType != PolicyType.Konut && policyType != PolicyType.TSS)
+                {
+                    warnings.Add("Net prim bulunamadı");
+                }
             }
 
             var grossPremium = _moneyExtractor.ExtractGrossPremium(pdfText, out double grossPremConf);
@@ -135,13 +139,6 @@ public class ExtractorOrchestrator
             else
             {
                 warnings.Add("Brüt prim bulunamadı");
-            }
-
-            var tax = _moneyExtractor.ExtractTax(pdfText, out double taxConf);
-            if (tax.HasValue)
-            {
-                policyData.GiderVergisi = tax;
-                fieldConfidence["Tax"] = taxConf;
             }
 
             // 4. Poliçe numarasını çıkar
@@ -189,20 +186,6 @@ public class ExtractorOrchestrator
                 else
                 {
                     warnings.Add($"{policyType} poliçesi için plaka numarası bulunamadı");
-                }
-
-                // Araç marka/model bilgisi (RegexPatterns'den)
-                var vehicleInfo = ExtractVehicleInfo(pdfText);
-                if (vehicleInfo.brand != null)
-                {
-                    policyData.VehicleBrand = vehicleInfo.brand;
-                    fieldConfidence["VehicleBrand"] = vehicleInfo.confidence;
-                }
-
-                if (vehicleInfo.model != null)
-                {
-                    policyData.VehicleModel = vehicleInfo.model;
-                    fieldConfidence["VehicleModel"] = vehicleInfo.confidence;
                 }
             }
 
