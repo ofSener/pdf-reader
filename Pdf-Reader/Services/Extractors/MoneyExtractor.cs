@@ -44,6 +44,32 @@ public class MoneyExtractor : IFieldExtractor<decimal>
     {
         confidence = 0;
 
+        // Allianz specific pattern - "PRİM BİLGİLERİ" section with table format
+        // The table has headers on one line and values on the next line
+        // Format:
+        //   Net Prim                  SGK Devri           BSM Vergisi
+        //   13,944.89 TL             1,267.72 TL          760.63 TL
+        bool isAllianz = text.ToUpper().Contains("ALLIANZ");
+
+        if (isAllianz)
+        {
+            // Find "PRİM BİLGİLERİ" section and extract the value below "Net Prim"
+            var primBilgileriMatch = System.Text.RegularExpressions.Regex.Match(text,
+                @"PR[İI]M\s+B[İI]LG[İI]LER[İI][\s\S]{1,300}Net\s+Prim[\s\S]{1,200}?([0-9]{1,3}(?:[,\.][0-9]{3})*[,\.][0-9]{2})\s*TL",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+            if (primBilgileriMatch.Success)
+            {
+                // The first number after "Net Prim" header should be the net premium value
+                if (TryParseMoney(primBilgileriMatch.Groups[1].Value, out decimal allianzNetResult))
+                {
+                    confidence = 0.98;
+                    _logger.LogInformation($"Allianz Net Prim Pattern matched - Net Premium: {allianzNetResult}");
+                    return allianzNetResult;
+                }
+            }
+        }
+
         // Neova Katılım pattern - "TOPLAM NET KATKI PRİMİ" or "NET KATKI PRİMİ" (colon optional)
         var neovaKatilimMatch = System.Text.RegularExpressions.Regex.Match(text,
             @"(?:TOPLAM\s+)?NET\s+KATKI\s+PR[İI]M[İI]\s*[:]?\s*([0-9.,]+)",
@@ -143,6 +169,73 @@ public class MoneyExtractor : IFieldExtractor<decimal>
     public decimal? ExtractGrossPremium(string text, out double confidence)
     {
         confidence = 0;
+
+        // Allianz specific pattern - "PRİM BİLGİLERİ" section with table format
+        // The table has headers on one line and values on the next line
+        // Format:
+        //   Garanti Fonu          Trafik Fonu            Ödenecek Prim
+        //   253.54 TL             633.86 TL              16,860.64 TL
+        bool isAllianz = text.ToUpper().Contains("ALLIANZ");
+
+        if (isAllianz)
+        {
+            _logger.LogInformation("Allianz document detected, attempting to extract gross premium from PRİM BİLGİLERİ section");
+
+            // Find "PRİM BİLGİLERİ" section - this is a table where headers and values are on separate rows
+            // We need to find the value that corresponds to "Ödenecek Prim" column
+            // Strategy: Find the section containing both "Net Prim" and "Ödenecek Prim", then extract all money values
+            // and return the largest one (which will be the total gross premium)
+            var primSectionMatch = System.Text.RegularExpressions.Regex.Match(text,
+                @"PR[İI]M\s+B[İI]LG[İI]LER[İI][\s\S]{1,800}(?=TRAFİK|ÖDEME|$)",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+            if (primSectionMatch.Success)
+            {
+                _logger.LogInformation($"Found PRİM BİLGİLERİ section ({primSectionMatch.Value.Length} chars)");
+
+                // Find all money values - both Turkish format (16.860,64) and international format (16,860.64)
+                var moneyMatches = System.Text.RegularExpressions.Regex.Matches(primSectionMatch.Value,
+                    @"([0-9]{1,3}(?:[,\.][0-9]{3})*[,\.][0-9]{2})\s*TL");
+
+                _logger.LogInformation($"Found {moneyMatches.Count} money values in PRİM BİLGİLERİ section");
+
+                decimal maxValue = 0;
+                foreach (System.Text.RegularExpressions.Match moneyMatch in moneyMatches)
+                {
+                    string moneyStr = moneyMatch.Groups[1].Value;
+                    _logger.LogInformation($"Attempting to parse money value: '{moneyStr}'");
+
+                    if (TryParseMoney(moneyStr, out decimal value))
+                    {
+                        _logger.LogInformation($"Successfully parsed money value: {value}");
+                        if (value > maxValue)
+                        {
+                            maxValue = value;
+                            _logger.LogInformation($"New max value: {value}");
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogWarning($"Failed to parse money value: '{moneyStr}'");
+                    }
+                }
+
+                if (maxValue > 100)
+                {
+                    confidence = 0.98;
+                    _logger.LogInformation($"Allianz PRİM BİLGİLERİ Pattern matched - Gross Premium (max value): {maxValue}");
+                    return maxValue;
+                }
+                else
+                {
+                    _logger.LogWarning($"No valid gross premium found in PRİM BİLGİLERİ section (maxValue: {maxValue})");
+                }
+            }
+            else
+            {
+                _logger.LogWarning("PRİM BİLGİLERİ section not found in Allianz document");
+            }
+        }
 
         // Quick Hayat Sigortası pattern - Tabloda "Bitiş Tarihi Prim Tutarı" başlığından önceki değer
         // Format: ": 100.00 TL\nBitiş Tarihi Prim Tutarı"

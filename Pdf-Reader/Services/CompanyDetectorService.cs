@@ -156,33 +156,83 @@ public class CompanyDetectorService
     }
 
     /// <summary>
-    /// Orijinal metinden şirket ismini çıkarır
+    /// Orijinal metinden şirket ismini çıkarır ve temizler
     /// </summary>
     private string? ExtractCompanyName(string text, CompanyType companyType)
     {
         if (!_companyKeywords.TryGetValue(companyType, out var keywords))
             return null;
 
-        // En uzun anahtar kelimeyi kullan (daha spesifik)
-        var longestKeyword = keywords.OrderByDescending(k => k.Length).First();
+        // En kısa anahtar kelimeyi kullan (sadece şirket adı, ekler olmadan)
+        var shortestKeyword = keywords.OrderBy(k => k.Length).First();
 
-        // Metinde ara
-        var index = text.IndexOf(longestKeyword, StringComparison.OrdinalIgnoreCase);
-        if (index >= 0)
+        // Şirket ismini temizle: gereksiz ekleri kaldır
+        var cleanName = CleanCompanyName(shortestKeyword);
+
+        return cleanName;
+    }
+
+    /// <summary>
+    /// Şirket ismini temizler: "SİGORTA", "A.Ş", "ANONİM" gibi ekleri kaldırır ve Title Case formatına çevirir
+    /// </summary>
+    private string CleanCompanyName(string companyName)
+    {
+        if (string.IsNullOrWhiteSpace(companyName))
+            return companyName;
+
+        // Gereksiz ekleri kaldır
+        var cleanedName = companyName
+            .Replace(" SİGORTA", "", StringComparison.OrdinalIgnoreCase)
+            .Replace(" SIGORTA", "", StringComparison.OrdinalIgnoreCase)
+            .Replace("SİGORTA", "", StringComparison.OrdinalIgnoreCase)
+            .Replace("SIGORTA", "", StringComparison.OrdinalIgnoreCase)
+            .Replace(" A.Ş", "", StringComparison.OrdinalIgnoreCase)
+            .Replace(" AŞ", "", StringComparison.OrdinalIgnoreCase)
+            .Replace(" A.S", "", StringComparison.OrdinalIgnoreCase)
+            .Replace(" AS", "", StringComparison.OrdinalIgnoreCase)
+            .Replace(" ANONİM", "", StringComparison.OrdinalIgnoreCase)
+            .Replace(" ANONIM", "", StringComparison.OrdinalIgnoreCase)
+            .Replace("ANONİM", "", StringComparison.OrdinalIgnoreCase)
+            .Replace("ANONIM", "", StringComparison.OrdinalIgnoreCase)
+            .Replace(" ŞİRKETİ", "", StringComparison.OrdinalIgnoreCase)
+            .Replace(" SIRKETI", "", StringComparison.OrdinalIgnoreCase)
+            .Replace("ŞİRKETİ", "", StringComparison.OrdinalIgnoreCase)
+            .Replace("SIRKETI", "", StringComparison.OrdinalIgnoreCase)
+            .Replace(" GENEL", "", StringComparison.OrdinalIgnoreCase)
+            .Replace("GENEL", "", StringComparison.OrdinalIgnoreCase)
+            .Replace(" KATILIM", "", StringComparison.OrdinalIgnoreCase)
+            .Trim();
+
+        // Title Case'e çevir (sadece ilk harf büyük)
+        return ToTitleCase(cleanedName);
+    }
+
+    /// <summary>
+    /// Metni Title Case formatına çevirir (Her Kelimenin İlk Harfi Büyük)
+    /// Türkçe karakterleri doğru şekilde işler (İ/i, I/ı)
+    /// </summary>
+    private string ToTitleCase(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return text;
+
+        // Türkçe kültürü kullan
+        var turkishCulture = new System.Globalization.CultureInfo("tr-TR");
+
+        var words = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var result = new List<string>();
+
+        foreach (var word in words)
         {
-            // Anahtar kelimenin etrafındaki metni al (şirket adının tam halini bulmak için)
-            var startIndex = Math.Max(0, index - 20);
-            var endIndex = Math.Min(text.Length, index + longestKeyword.Length + 30);
-            var context = text.Substring(startIndex, endIndex - startIndex);
+            if (word.Length == 0)
+                continue;
 
-            // Şirket adı genellikle büyük harflerle ve tam olarak yazılır
-            // Basit bir yaklaşım: anahtar kelimenin kendisini döndür
-            // (Gelişmiş: regex ile tam şirket adını parse edebiliriz)
-
-            return longestKeyword;
+            // İlk harfi büyük, geri kalanı küçük - Türkçe karakterleri doğru işle
+            var titleCaseWord = char.ToUpper(word[0], turkishCulture) + word.Substring(1).ToLower(turkishCulture);
+            result.Add(titleCaseWord);
         }
 
-        return companyType.ToString();
+        return string.Join(" ", result);
     }
 
     /// <summary>
@@ -195,20 +245,23 @@ public class CompanyDetectorService
         var policyTypeKeywords = new Dictionary<PolicyType, string[]>
         {
             { PolicyType.Trafik, new[] { "TRAFİK SİGORTASI", "ZORUNLU TRAFİK", "KARAYOLLARI MOTORLU", "TRAFİK POLİÇESİ", "TRAFIK" } },
-            { PolicyType.Kasko, new[] { "KASKO", "MOTORLİ ARAÇLAR KASKO", "TAM KASKO", "KASKO SİGORTASI" } },
+            { PolicyType.Kasko, new[] { "GENİŞLETİLMİŞ KASKO POLİÇESİ", "KASKO POLİÇESİ", "MOTORLİ ARAÇLAR KASKO", "TAM KASKO", "KASKO SİGORTASI", "KASKO" } },
             { PolicyType.Dask, new[] { "DASK", "ZORUNLU DEPREM", "DEPREM SİGORTASI" } },
             { PolicyType.Konut, new[] { "KONUT SİGORTASI", "EV SİGORTASI", "KONUT POLİÇESİ" } },
             { PolicyType.Hayat, new[] { "YILLIK HAYAT SİGORTASI", "HAYAT SİGORTASI SERTİFİKASI", "HAYAT SİGORTASI", "HAYAT POLİÇESİ" } },
-            { PolicyType.Saglik, new[] { "SAĞLIK SİGORTASI", "TAMAMLAYICI SAĞLIK", "ÖZEL SAĞLIK" } },
-            { PolicyType.Isyeri, new[] { "İŞYERİ SİGORTASI", "TİCARİ SİGORTA", "İŞYERİ POLİÇESİ" } },
-            { PolicyType.FerdiKaza, new[] { "FERDİ KAZA", "KİŞİSEL KAZA", "FERDİ KAZA SİGORTASI" } },
+            { PolicyType.Saglik, new[] { "SAĞLIK SİGORTASI", "TAMAMLAYICI SAĞLIK", "TSS", "ÖZEL SAĞLIK" } },
+            { PolicyType.Isyeri, new[] { "İŞYERİ SİGORTASI", "TİCARİ SİGORTA", "İŞYERİ POLİÇESİ", "İŞYERİ MUHTEVİYAT" } },
+            { PolicyType.FerdiKaza, new[] { "FERDİ KAZA SİGORTASI", "FERDİ KAZA POLİÇESİ", "KİŞİSEL KAZA SİGORTASI", "FERDI KAZA" } },
             { PolicyType.Seyahat, new[] { "SEYAHAT SİGORTASI", "YURT DIŞI SAĞLIK", "SEYAHAT POLİÇESİ" } },
             { PolicyType.YabanciSaglik, new[] { "YABANCI SAĞLIK", "YURT DIŞI SAĞLIK", "YAB. SAĞLIK" } },
             { PolicyType.Nakliyat, new[] { "NAKLİYAT SİGORTASI", "EMTİA NAKLİYAT", "TAŞIMACILIK SİGORTASI" } },
             { PolicyType.Yangin, new[] { "YANGIN SİGORTASI", "YANGIN POLİÇESİ", "YANGIN VE HIRSIZLIK" } },
             { PolicyType.Muhendislik, new[] { "MÜHENDİSLİK SİGORTASI", "İNŞAAT SİGORTASI", "MAKİNA KIRILMASI" } },
+            { PolicyType.DoğalKoruma, new[] { "DOĞAL AFET KORUMA SİGORTASI", "DOĞAL AFET KORUMA", "DOĞAL KORUMA SİGORTASI", "DOĞAL KORUMA POLİÇESİ" } },
             { PolicyType.Sorumluluk, new[] { "SORUMLULUK SİGORTASI", "ÜÇÜNCÜ ŞAHIS SORUMLULUK", "MALİ SORUMLULUK" } },
-            { PolicyType.Tarım, new[] { "TARIM SİGORTASI", "TARIMSAL ÜRÜN", "HAYVAN SİGORTASI" } }
+            { PolicyType.Tarım, new[] { "TARIM SİGORTASI", "TARIMSAL ÜRÜN", "HAYVAN SİGORTASI" } },
+            { PolicyType.YesilKart, new[] { "YEŞİL KART SİGORTASI", "YEŞİL KART POLİÇESİ", "YEŞİL KART", "YESIL KART", "GREEN CARD" } },
+            { PolicyType.IsyeriMuhteviyat, new[] { "İŞYERİ MUHTEVİYAT SİGORTASI", "İŞYERİ MUHTEVİYAT POLİÇESİ", "İŞYERİ MUHTEVİYAT" } }
         };
 
         var detections = new List<(PolicyType type, int score)>();
